@@ -78,20 +78,20 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
   <h2>How to read this map</h2>
   <p id="lead"></p>
   <h3>Shading: room for another tunnel</h3>
-  <p class="m">Each census tract is judged on the vehicles within a 10-minute drive, less the tunnels already there and the upcoming competitor washes.</p>
+  <p class="m">Each census tract is scored on the household vehicles within a 10-minute drive, less the tunnel car washes already there and the upcoming competitor washes.</p>
   <p><span class="sw" style="background:rgb(176,92,30)"></span>More than 2 tunnels short</p>
   <p><span class="sw" style="background:rgb(214,150,90)"></span>1 to 2 tunnels short</p>
   <p><span class="sw" style="background:rgb(226,216,192)"></span>Within 1 tunnel of par</p>
   <p><span class="sw" style="background:rgb(96,118,138)"></span>More tunnels than the vehicles support</p>
-  <select id="bench" aria-label="Benchmark"><option value="20k">1 tunnel per 20,000 people (default)</option><option value="25k">1 tunnel per 25,000 people</option><option value="15k">1 tunnel per 15,000 people</option></select>
+  <select id="bench" aria-label="Benchmark"><option value="20k">1 tunnel per 20,000 people</option><option value="25k">1 tunnel per 25,000 people</option><option value="15k">1 tunnel per 15,000 people</option></select>
   <label><input type="checkbox" id="cShade" checked> Show shading</label>
-  <h3>Tunnels</h3>
+  <h3>Car washes</h3>
   <div id="legT"></div>
-  <label><input type="checkbox" id="cOwn"> Color tunnels by who holds the land</label>
-  <p class="m">Click a tunnel for its owner of record, who holds the land, and debt of record.</p>
+  <label><input type="checkbox" id="cOwn"> Color by real estate ownership</label>
+  <p class="m">Click a car wash for its owner of record, real estate ownership and loans of record.</p>
   <div class="stack">
     <select id="jump" aria-label="Jump to an area"></select>
-    <button class="btn primary" id="bRank">Rankings and tunnel list</button>
+    <button class="btn primary" id="bRank">Rankings and car wash list</button>
     <button class="btn" id="bMethod">Method and sources</button>
     <input type="search" id="q" placeholder="Wash, address, town or owner">
     <div id="hits"></div>
@@ -100,7 +100,7 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
     <div class="stack"><a class="btn" id="tel" href="#"></a><a class="btn" id="mail" href="#">Email</a></div></div>
 </div>
 <div id="map"></div>
-<div id="drawer"><div class="win-h"><b>Rankings and tunnel list</b><span class="tabs"><button id="tA" class="on">Areas</button><button id="tT">Tunnels</button></span><button id="xD">Close</button></div>
+<div id="drawer"><div class="win-h"><b>Rankings and car wash list</b><span class="tabs"><button id="tA" class="on">Areas</button><button id="tT">Car washes</button></span><button id="xD">Close</button></div>
   <div class="win-b" id="grid"></div><div id="count"></div></div>
 <div id="method"><div class="win-h"><b>Method and sources</b><button id="xM">Close</button></div><div class="win-b" id="mtext"></div></div>
 </main>
@@ -108,7 +108,7 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const P = {"salt": "V+xy9CM3kPyn1+lBYmQn9g==", "iv": "I5VLopM9to0Q2Zbt", "iter": 310000, "v": 1794253375};
+const P = {"salt": "THMUPWScMhMWKpLo9uEvaA==", "iv": "nWpDk5NzbuMkmzBv", "iter": 310000, "v": 1794254363};
 const $ = id => document.getElementById(id);
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -131,16 +131,14 @@ $('gf').addEventListener('submit', async e => {
 const CLS = ['Not enough vehicles', 'Over-served', 'At par', 'Underserved', 'Underserved, strong'];
 const CCOL = ['rgba(120,120,120,0.14)', 'rgba(96,118,138,0.5)', 'rgba(226,216,192,0.36)', 'rgba(214,150,90,0.68)', 'rgba(176,92,30,0.8)'];
 const CLAB = ['Too few vehicles for one tunnel', 'More tunnels than the vehicles support', 'Within 1 tunnel of par', '1 to 2 tunnels short', 'More than 2 tunnels short'];
-const OWNC = {'Operator owns the real estate (strong evidence)': ['#E0E0DA', '#2A2829', 1], 'Operator owns the real estate (likely)': ['#E0E0DA', '#B87333', .75],
-  'Operator may own the real estate': ['#E0E0DA', '#E0E0DA', .3], 'Leased or separate landlord': ['#B87333', '#E0E0DA', 1],
-  'Not confirmed': ['#969696', '#E0E0DA', .9], 'Not yet researched': ['#969696', '#969696', .2]};
-const OWNL = {'Not confirmed': 'Owner known, no tie to the operator found', 'Operator may own the real estate': 'Operator may own (tax bill mails to the wash)'};
+const OWNC = {'Operator owns the real estate': ['#E0E0DA', '#2A2829', 1], 'Operator likely owns the real estate': ['#E0E0DA', '#B87333', .75],
+  'Leased (separate landlord)': ['#B87333', '#E0E0DA', 1], 'Not available': ['#969696', '#969696', .25]};
 
 function start(D) {
   document.title = D.meta.title;
   $('app').style.display = 'flex';
   $('logo').src = D.logo; $('title').textContent = D.meta.title; $('sub').textContent = D.meta.sub;
-  $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' confirmed tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, against the household vehicles around them.';
+  $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, set against the household vehicles around them.';
   $('cn').textContent = D.contact.name; $('ct').textContent = D.contact.title; $('cf').textContent = D.contact.firm;
   $('tel').textContent = D.contact.phone; $('tel').href = 'tel:' + D.contact.tel; $('mail').href = $('contact').href = 'mailto:' + D.contact.email;
   $('mtext').innerHTML = D.method;
@@ -169,9 +167,9 @@ function start(D) {
     const pe = {'25k': '25,000', '20k': '20,000', '15k': '15,000'}[bench];
     return '<h4>' + esc(t.label) + '</h4><p style="margin:0 0 6px"><b>' + CLAB[t['c' + bench]] + '</b> at 1 tunnel per ' + pe + ' people (' + num(D.meta.bench[bench]) + ' household vehicles).</p>' +
       '<table class="kv">' + [['Trade area', 'about ' + t.r + ' miles (10-minute drive, estimate)'], ['Household vehicles in it', num(t.veh)], ['People in it', num(t.pop)],
-      ['Tunnels operating', t.t], ['Upcoming competitor washes', t.p], ['Tunnels the vehicles support', t['s' + bench]], ['Modeled gap', t['g' + bench]],
+      ['Tunnel car washes', t.t], ['Upcoming competitor washes', t.p], ['Tunnels the vehicles support', t['s' + bench]], ['Room for more tunnels', t['g' + bench]],
       ['Vehicles per tunnel today', num(t.vpt)], ['Nearest tunnel', t.near + ' mi']].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') +
-      '</table><p style="margin:6px 0 0;font-size:12px;color:#5c5a57">Screening estimate. Sites still being verified are not counted as supply, so gaps run high.</p>';
+      '</table><p style="margin:6px 0 0;font-size:12px;color:#5c5a57">Screening estimate.</p>';
   }
   $('bench').onchange = e => { bench = e.target.value; polys.forEach(x => x[0].setStyle(tstyle(x[1]))); drawGrid(); };
   $('cShade').onchange = e => e.target.checked ? tractLayer.addTo(map) : map.removeLayer(tractLayer);
@@ -188,30 +186,28 @@ function start(D) {
 
   // tunnels
   let byOwn = false;
-  const tLayer = L.layerGroup().addTo(map), rLayer = L.layerGroup();
+  const tLayer = L.layerGroup().addTo(map);
   const tStyle = t => {
-    if (byOwn) { const c = OWNC[t.ownership] || OWNC['Not yet researched']; return {renderer: ptR, radius: 6, color: c[1], weight: 1.5, fillColor: c[0], fillOpacity: c[2]}; }
-    return t.tier === 'Confirmed tunnel' ? {renderer: ptR, radius: 5.5, color: '#2A2829', weight: 1.2, fillColor: '#E0E0DA', fillOpacity: 1}
+    if (byOwn) { const c = OWNC[t.ownership] || OWNC['Not available']; return {renderer: ptR, radius: 6, color: c[1], weight: 1.5, fillColor: c[0], fillOpacity: c[2]}; }
+    return t.tier === 'Tunnel car wash' ? {renderer: ptR, radius: 5.5, color: '#2A2829', weight: 1.2, fillColor: '#E0E0DA', fillOpacity: 1}
                                          : {renderer: ptR, radius: 5.5, color: '#E0E0DA', weight: 1.7, fillColor: '#E0E0DA', fillOpacity: 0.15};
   };
   const up_ = t => t.tier === 'Upcoming competitor wash';
   const row = (k, v) => (v == null || v === '') ? '' : '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>';
-  const tHtml = t => '<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Owner of record', t.owner) +
-    row('Owner source', t.owner_src) + row('Who holds the land (our read)', OWNL[t.ownership] || t.ownership) + row('Tunnel read', t.tier) + row('Format (provisional)', t.format) +
-    row('Wash building (ft, estimate)', t.len) + row(up_(t) ? 'Status' : 'Basis for the tunnel read', t.evidence) + row('Debt of record', t.debt) + row('SBA loan of record', t.sba) +
-    row('Debt maturity window', t.maturity) + row('Google rating', t.rating ? t.rating + ' (' + num(t.reviews) + ' reviews)' : '') + '</table>';
+  const tHtml = t => '<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Type', t.tier) + row('Approval status', t.evidence) +
+    row('Owner of record', t.owner ? t.owner + (t.owner_src ? ' (' + t.owner_src + ')' : '') : '') + row('Real estate', t.ownership) +
+    row('Mortgage on record (NYC land records)', t.debt) + row('SBA loan (SBA data, Sept. 30, 2026)', t.sba) + row('SBA maturity (estimate)', t.maturity) + row('Format', t.format) +
+    row('Wash building length', t.len ? 'about ' + t.len + ' ft' : '') + row('Google rating', t.rating ? t.rating + ' (' + num(t.reviews) + ' reviews)' : '') + '</table>';
   D.tunnels.forEach(t => {
     t.m = up_(t) ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 14], html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid #B87333;filter:drop-shadow(0 0 1px #E0E0DA)"></div>'})})
       : t.own ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 16], html: '<div style="width:14px;height:14px;transform:rotate(45deg);background:#B87333;border:2px solid #E0E0DA"></div>'})})
                    : L.circleMarker([t.lat, t.lng], tStyle(t));
     t.m.bindPopup(() => tHtml(t), {maxWidth: 340}).addTo(tLayer);
   });
-  D.review.forEach(t => L.circleMarker([t.lat, t.lng], {renderer: ptR, radius: 4, color: '#969696', weight: 1.5, fillOpacity: 0, dashArray: '2 2'})
-    .bindPopup('<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Note', 'Plausible tunnel; needs a street-level look') + '</table>').addTo(rLayer));
   function legend() {
-    $('legT').innerHTML = byOwn ? Object.keys(OWNC).map(k => '<p><span class="dot" style="background:' + OWNC[k][0] + ';border-color:' + OWNC[k][1] + ';opacity:' + Math.max(OWNC[k][2], .45) + '"></span>' + (OWNL[k] || k) + '</p>').join('')
-      : '<p><span class="dot" style="background:#E0E0DA;border-color:#2A2829"></span>Confirmed tunnel car wash</p>';
-    $('legT').innerHTML += '<p><span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #B87333;margin-right:6px"></span>Upcoming competitor wash (approved or in the approval process)</p>';
+    $('legT').innerHTML = byOwn ? Object.keys(OWNC).map(k => '<p><span class="dot" style="background:' + OWNC[k][0] + ';border-color:' + OWNC[k][1] + ';opacity:' + Math.max(OWNC[k][2], .45) + '"></span>' + k + '</p>').join('')
+      : '<p><span class="dot" style="background:#E0E0DA;border-color:#2A2829"></span>Tunnel car wash</p>';
+    $('legT').innerHTML += '<p><span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #B87333;margin-right:6px"></span>Upcoming competitor wash</p>';
     $('legT').innerHTML += '<p><span class="dia"></span>' + esc(D.meta.ownLabel) + '</p>';
   }
   legend();
@@ -223,25 +219,25 @@ function start(D) {
     const s = e.target.value.trim().toLowerCase(), h = $('hits');
     if (s.length < 2) { h.style.display = 'none'; return; }
     const r = D.tunnels.filter(t => (t.name + ' ' + t.address + ' ' + t.city + ' ' + (t.owner || '')).toLowerCase().includes(s)).slice(0, 25);
-    h.innerHTML = r.map((t, i) => '<div data-i="' + D.tunnels.indexOf(t) + '">' + esc(t.name) + '<br><small>' + esc(t.address + ', ' + t.city) + '</small></div>').join('') || '<div>No tunnel matches.</div>';
+    h.innerHTML = r.map((t, i) => '<div data-i="' + D.tunnels.indexOf(t) + '">' + esc(t.name) + '<br><small>' + esc(t.address + ', ' + t.city) + '</small></div>').join('') || '<div>No match.</div>';
     h.style.display = 'block';
   };
   $('hits').onclick = e => { const d = e.target.closest('div[data-i]'); if (d) { go(D.tunnels[+d.dataset.i]); $('hits').style.display = 'none'; } };
 
   // windows
   let tab = 'A', sortK = null, sortD = 1;
-  const TC = [['name', 'Wash'], ['address', 'Address'], ['city', 'Town or village'], ['county', 'County'], ['owner', 'Owner of record'], ['ownership', 'Who holds the land (our read)'],
-    ['debt', 'Debt of record'], ['sba', 'SBA loan of record'], ['maturity', 'Debt maturity window'], ['format', 'Format (provisional)'], ['tier', 'Tunnel read'], ['rating', 'Google rating'], ['reviews', 'Google reviews']];
+  const TC = [['name', 'Wash'], ['address', 'Address'], ['city', 'Town or village'], ['county', 'County'], ['tier', 'Type'], ['owner', 'Owner of record'], ['ownership', 'Real estate'],
+    ['debt', 'Mortgage on record (NYC land records)'], ['sba', 'SBA loan (SBA data, Sept. 30, 2026)'], ['maturity', 'SBA maturity (estimate)'], ['format', 'Format'], ['rating', 'Google rating'], ['reviews', 'Google reviews']];
   function drawGrid() {
     const AC = [['rank_' + bench, 'Rank'], ['area', 'Area'], ['tunnels', 'Tunnels'], ['vehicles_per_tunnel', 'Vehicles per tunnel'], ['people_per_tunnel', 'People per tunnel'],
-      ['room_at_par_' + bench, 'Room at par (estimate)'], ['underserved_tracts_' + bench, 'Underserved tracts'], ['tracts', 'Census tracts']];
+      ['room_at_par_' + bench, 'Room for more tunnels (estimate)'], ['underserved_tracts_' + bench, 'Underserved tracts'], ['tracts', 'Census tracts']];
     const cols = tab === 'A' ? AC : TC;
     let rows = (tab === 'A' ? D.areas : D.tunnels).slice();
     const k = sortK || (tab === 'A' ? 'rank_' + bench : null);
     if (k) rows.sort((a, b) => { const x = a[k], y = b[k]; return ((typeof x === 'number' && typeof y === 'number') ? x - y : String(x == null ? '' : x).localeCompare(String(y == null ? '' : y))) * sortD; });
     $('grid').innerHTML = '<table class="grid"><thead><tr>' + cols.map(c => '<th data-k="' + c[0] + '">' + c[1] + '</th>').join('') + '</tr></thead><tbody>' +
-      rows.map(r => '<tr data-i="' + (tab === 'A' ? esc(r.area) : D.tunnels.indexOf(r)) + '">' + cols.map(c => '<td>' + (typeof r[c[0]] === 'number' ? num(r[c[0]]) : esc(c[0] === 'ownership' ? (OWNL[r[c[0]]] || r[c[0]]) : r[c[0]])) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
-    $('count').textContent = rows.length + (tab === 'A' ? ' areas. Click a row to move the map.' : ' tunnels. Click a heading to sort, a row to open the wash on the map.');
+      rows.map(r => '<tr data-i="' + (tab === 'A' ? esc(r.area) : D.tunnels.indexOf(r)) + '">' + cols.map(c => '<td>' + (typeof r[c[0]] === 'number' ? num(r[c[0]]) : esc(r[c[0]])) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+    $('count').textContent = rows.length + (tab === 'A' ? ' areas. Click a row to move the map.' : ' car washes. Click a heading to sort, a row to open the wash on the map.');
   }
   $('grid').onclick = e => {
     const th = e.target.closest('th'); if (th) { sortD = sortK === th.dataset.k ? -sortD : 1; sortK = th.dataset.k; drawGrid(); return; }
