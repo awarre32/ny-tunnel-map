@@ -88,7 +88,6 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
   <h3>Tunnels</h3>
   <div id="legT"></div>
   <label><input type="checkbox" id="cOwn"> Color tunnels by who holds the land</label>
-  <label><input type="checkbox" id="cRev"> Show sites still under review</label>
   <p class="m">Click a tunnel for its owner of record, who holds the land, and debt of record.</p>
   <div class="stack">
     <select id="jump" aria-label="Jump to an area"></select>
@@ -109,7 +108,7 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const P = {"salt": "HrpL2OXcSuZ4aEA7DKiCsA==", "iv": "LKadmDsoyYOB3KCt", "iter": 310000, "v": 1794251656};
+const P = {"salt": "V+xy9CM3kPyn1+lBYmQn9g==", "iv": "I5VLopM9to0Q2Zbt", "iter": 310000, "v": 1794253375};
 const $ = id => document.getElementById(id);
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -141,7 +140,7 @@ function start(D) {
   document.title = D.meta.title;
   $('app').style.display = 'flex';
   $('logo').src = D.logo; $('title').textContent = D.meta.title; $('sub').textContent = D.meta.sub;
-  $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, against the household vehicles around them.';
+  $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' confirmed tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, against the household vehicles around them.';
   $('cn').textContent = D.contact.name; $('ct').textContent = D.contact.title; $('cf').textContent = D.contact.firm;
   $('tel').textContent = D.contact.phone; $('tel').href = 'tel:' + D.contact.tel; $('mail').href = $('contact').href = 'mailto:' + D.contact.email;
   $('mtext').innerHTML = D.method;
@@ -172,7 +171,7 @@ function start(D) {
       '<table class="kv">' + [['Trade area', 'about ' + t.r + ' miles (10-minute drive, estimate)'], ['Household vehicles in it', num(t.veh)], ['People in it', num(t.pop)],
       ['Tunnels operating', t.t], ['Upcoming competitor washes', t.p], ['Tunnels the vehicles support', t['s' + bench]], ['Modeled gap', t['g' + bench]],
       ['Vehicles per tunnel today', num(t.vpt)], ['Nearest tunnel', t.near + ' mi']].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') +
-      '</table><p style="margin:6px 0 0;font-size:12px;color:#5c5a57">Screening estimate. Sites still under review are not counted as supply.</p>';
+      '</table><p style="margin:6px 0 0;font-size:12px;color:#5c5a57">Screening estimate. Sites still being verified are not counted as supply, so gaps run high.</p>';
   }
   $('bench').onchange = e => { bench = e.target.value; polys.forEach(x => x[0].setStyle(tstyle(x[1]))); drawGrid(); };
   $('cShade').onchange = e => e.target.checked ? tractLayer.addTo(map) : map.removeLayer(tractLayer);
@@ -211,13 +210,12 @@ function start(D) {
     .bindPopup('<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Note', 'Plausible tunnel; needs a street-level look') + '</table>').addTo(rLayer));
   function legend() {
     $('legT').innerHTML = byOwn ? Object.keys(OWNC).map(k => '<p><span class="dot" style="background:' + OWNC[k][0] + ';border-color:' + OWNC[k][1] + ';opacity:' + Math.max(OWNC[k][2], .45) + '"></span>' + (OWNL[k] || k) + '</p>').join('')
-      : '<p><span class="dot" style="background:#E0E0DA;border-color:#2A2829"></span>Confirmed tunnel</p><p><span class="dot" style="background:transparent"></span>Probable tunnel (not yet seen at street level)</p>';
+      : '<p><span class="dot" style="background:#E0E0DA;border-color:#2A2829"></span>Confirmed tunnel car wash</p>';
     $('legT').innerHTML += '<p><span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #B87333;margin-right:6px"></span>Upcoming competitor wash (approved or in the approval process)</p>';
     $('legT').innerHTML += '<p><span class="dia"></span>' + esc(D.meta.ownLabel) + '</p>';
   }
   legend();
   $('cOwn').onchange = e => { byOwn = e.target.checked; D.tunnels.forEach(t => t.m.setStyle && t.m.setStyle(tStyle(t))); legend(); };
-  $('cRev').onchange = e => e.target.checked ? rLayer.addTo(map) : map.removeLayer(rLayer);
   const go = t => { $('drawer').style.display = 'none'; map.setView([t.lat, t.lng], 16); t.m.openPopup(); };
 
   // search
