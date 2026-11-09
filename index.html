@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow,noarchive">
+<title>Private map</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Old+Standard+TT:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{--char:#2A2829;--rail:#322F30;--line:#4A4748;--out:#6B6866;--hover:#3D3A3B;--offw:#E0E0DA;--mist:#B5B3AD;--copper:#B87333;--ink:#2A2829;
+--serif:'Old Standard TT',Georgia,'Times New Roman',serif;--sans:Calibri,'Segoe UI',Arial,sans-serif}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--char);color:var(--offw);font-family:var(--sans);font-size:14px}
+button,input,select{font-family:inherit;font-size:13px}
+#gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--char)}
+#gate form{width:min(360px,88vw);border:1px solid var(--line);padding:28px 26px;background:var(--rail)}
+#gate h1{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 6px}
+#gate p{margin:0 0 16px;color:var(--mist);line-height:1.4}
+#gate input{width:100%;padding:10px;background:var(--char);border:1px solid var(--out);color:var(--offw);margin-bottom:12px}
+#gate button{width:100%;padding:10px;background:var(--offw);color:var(--ink);border:0;font-weight:700;cursor:pointer}
+#gate .err{color:#E2A27A;min-height:18px;margin:10px 0 0}
+#app{display:none;height:100%;flex-direction:column}
+header{height:70px;flex:0 0 70px;display:flex;align-items:center;gap:22px;padding:0 16px;background:var(--char);border-bottom:1px solid var(--line)}
+header img{height:46px}
+header .t{font-family:var(--serif);font-size:22px;white-space:nowrap}
+header .s{font-family:var(--serif);font-size:12px;color:var(--mist);white-space:nowrap}
+header a.btn{margin-left:auto}
+.btn{display:block;text-align:center;padding:7px 12px;border:1px solid var(--out);color:var(--offw);background:transparent;text-decoration:none;cursor:pointer;width:100%}
+.btn:hover{background:var(--hover)}.btn.primary{background:var(--offw);color:var(--ink);border-color:var(--offw);font-weight:700}.btn.primary:hover{background:#fff}
+header .btn{width:auto}
+main{flex:1;display:flex;min-height:0;position:relative}
+#rail{width:320px;flex:0 0 320px;background:var(--rail);padding:14px 16px 16px;overflow:auto}
+#rail h2{font-family:var(--serif);font-size:18px;margin:0 0 6px}#rail h3{font-family:var(--serif);font-size:15px;margin:12px 0 4px}
+#rail p{margin:0 0 4px;font-size:13px;line-height:1.4}#rail p.m{color:var(--mist)}
+.sw{display:inline-block;width:11px;height:11px;margin-right:6px;vertical-align:-1px}
+.dot{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px;border:1.5px solid var(--offw)}
+.dia{display:inline-block;width:10px;height:10px;transform:rotate(45deg);margin:0 8px 0 2px;background:var(--copper);border:1.5px solid var(--offw);vertical-align:0}
+#rail label{display:block;font-size:13px;margin:5px 0;cursor:pointer}#rail select,#rail input[type=search]{width:100%;padding:7px;background:var(--char);border:1px solid var(--out);color:var(--offw);margin:4px 0}
+#rail .stack>*{margin-top:6px}
+#hits{max-height:190px;overflow:auto;border:1px solid var(--line);display:none}
+#hits div{padding:6px 8px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}#hits div:hover{background:var(--hover)}#hits small{color:var(--mist)}
+.card{border-top:1px solid var(--line);margin-top:12px;padding-top:8px}.card small{color:var(--mist);display:block}
+#map{flex:1;min-width:0;background:#1c1c1e}
+.leaflet-container{font-family:var(--sans);background:#1c1c1e}
+.leaflet-popup-content-wrapper{border-radius:0;color:var(--ink)}.leaflet-popup-content{margin:12px 14px;font-size:13px;line-height:1.35;max-height:330px;overflow:auto}
+.leaflet-popup-content h4{font-family:var(--serif);font-size:16px;margin:0 0 6px}
+.kv{border-collapse:collapse;width:100%}.kv td{padding:2px 8px 2px 0;vertical-align:top}.kv td:first-child{color:#5c5a57;white-space:nowrap}.kv td:last-child{font-weight:600}
+.arealabel{background:none;border:0;box-shadow:none;color:var(--offw);font-weight:700;font-size:12px;text-shadow:0 0 3px #2A2829,0 0 3px #2A2829}
+.arealabel:before{display:none}
+#drawer,#method{position:absolute;top:0;bottom:0;background:#fff;color:var(--ink);z-index:1200;display:none;flex-direction:column;border-left:1px solid #C9C7C1;box-shadow:0 2px 10px rgba(0,0,0,.3)}
+#drawer{right:0;width:min(720px,100%)}
+#method{left:50%;top:5%;bottom:5%;transform:translateX(-50%);width:min(680px,94%);border:1px solid #C9C7C1}
+.win-h{display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid #DDDBD5}
+.win-h b{font-family:var(--serif);font-size:17px;margin-right:auto}
+.win-h button{border:1px solid #C9C7C1;background:#fff;padding:5px 12px;cursor:pointer;font-weight:700}
+.tabs button{border:0;border-bottom:3px solid transparent;font-weight:400}.tabs button.on{border-bottom-color:var(--ink);font-weight:700}
+.win-b{flex:1;overflow:auto}
+table.grid{border-collapse:collapse;width:100%;font-size:12.5px}
+table.grid th{position:sticky;top:0;background:var(--char);color:var(--offw);text-align:left;padding:7px 8px;white-space:nowrap;cursor:pointer}
+table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top}table.grid tr:hover td{background:#F1F1EC;cursor:pointer}
+#method .win-b{padding:6px 22px 20px;line-height:1.45}#method h4{font-family:var(--serif);font-size:17px;margin:14px 0 4px}#method p{margin:0 0 8px}
+#count{color:#5c5a57;font-size:12px;padding:6px 12px;border-top:1px solid #DDDBD5}
+@media (max-width:820px){main{flex-direction:column}#rail{width:100%;flex:0 0 auto;max-height:42%}header .s{display:none}header .t{font-size:17px}}
+</style>
+</head>
+<body>
+<div id="gate"><form id="gf" autocomplete="off">
+<h1>Private map</h1><p>Enter the passcode you were given.</p>
+<input id="pc" type="password" placeholder="Passcode" autofocus aria-label="Passcode">
+<button type="submit">Open</button><div class="err" id="ge"></div>
+</form></div>
+
+<div id="app">
+<header><img id="logo" alt=""><div><div class="t" id="title"></div><div class="s" id="sub"></div></div><a class="btn" id="contact" href="#">Contact</a></header>
+<main>
+<div id="rail">
+  <h2>How to read this map</h2>
+  <p id="lead"></p>
+  <h3>Shading: room for another tunnel</h3>
+  <p class="m">Each census tract is judged on the vehicles within a 10-minute drive, less the tunnels already there and the upcoming competitor washes.</p>
+  <p><span class="sw" style="background:rgb(176,92,30)"></span>More than 2 tunnels short</p>
+  <p><span class="sw" style="background:rgb(214,150,90)"></span>1 to 2 tunnels short</p>
+  <p><span class="sw" style="background:rgb(226,216,192)"></span>Within 1 tunnel of par</p>
+  <p><span class="sw" style="background:rgb(96,118,138)"></span>More tunnels than the vehicles support</p>
+  <select id="bench" aria-label="Benchmark"><option value="20k">1 tunnel per 20,000 people (default)</option><option value="25k">1 tunnel per 25,000 people</option><option value="15k">1 tunnel per 15,000 people</option></select>
+  <label><input type="checkbox" id="cShade" checked> Show shading</label>
+  <h3>Tunnels</h3>
+  <div id="legT"></div>
+  <label><input type="checkbox" id="cOwn"> Color tunnels by who holds the land</label>
+  <label><input type="checkbox" id="cRev"> Show sites still under review</label>
+  <p class="m">Click a tunnel for its owner of record, who holds the land, and debt of record.</p>
+  <div class="stack">
+    <select id="jump" aria-label="Jump to an area"></select>
+    <button class="btn primary" id="bRank">Rankings and tunnel list</button>
+    <button class="btn" id="bMethod">Method and sources</button>
+    <input type="search" id="q" placeholder="Wash, address, town or owner">
+    <div id="hits"></div>
+  </div>
+  <div class="card"><b id="cn"></b><small id="ct"></small><small id="cf"></small>
+    <div class="stack"><a class="btn" id="tel" href="#"></a><a class="btn" id="mail" href="#">Email</a></div></div>
+</div>
+<div id="map"></div>
+<div id="drawer"><div class="win-h"><b>Rankings and tunnel list</b><span class="tabs"><button id="tA" class="on">Areas</button><button id="tT">Tunnels</button></span><button id="xD">Close</button></div>
+  <div class="win-b" id="grid"></div><div id="count"></div></div>
+<div id="method"><div class="win-h"><b>Method and sources</b><button id="xM">Close</button></div><div class="win-b" id="mtext"></div></div>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script>
+const P = {"salt": "ZbWfAF2ejUU3R9/2KPts4g==", "iv": "fegIDrX1wExQReUQ", "iter": 310000, "v": 1794251521};
+const $ = id => document.getElementById(id);
+const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => (v == null || v === '') ? '' : Number(v).toLocaleString('en-US');
+
+async function unlock(pass) {
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey']);
+  const key = await crypto.subtle.deriveKey({name: 'PBKDF2', salt: b64(P.salt), iterations: P.iter, hash: 'SHA-256'}, km, {name: 'AES-GCM', length: 256}, false, ['decrypt']);
+  const buf = await (await fetch('data.enc?v=' + P.v, {cache: 'no-store'})).arrayBuffer();
+  const plain = await crypto.subtle.decrypt({name: 'AES-GCM', iv: b64(P.iv)}, key, buf);
+  const text = await new Response(new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'))).text();
+  return JSON.parse(text);
+}
+$('gf').addEventListener('submit', async e => {
+  e.preventDefault(); $('ge').textContent = 'Opening...';
+  try { const d = await unlock($('pc').value.trim()); $('gate').remove(); start(d); }
+  catch (err) { $('ge').textContent = 'That passcode did not open the map.'; }
+});
+
+const CLS = ['Not enough vehicles', 'Over-served', 'At par', 'Underserved', 'Underserved, strong'];
+const CCOL = ['rgba(120,120,120,0.14)', 'rgba(96,118,138,0.5)', 'rgba(226,216,192,0.36)', 'rgba(214,150,90,0.68)', 'rgba(176,92,30,0.8)'];
+const CLAB = ['Too few vehicles for one tunnel', 'More tunnels than the vehicles support', 'Within 1 tunnel of par', '1 to 2 tunnels short', 'More than 2 tunnels short'];
+const OWNC = {'Operator owns the real estate (strong evidence)': ['#E0E0DA', '#2A2829', 1], 'Operator owns the real estate (likely)': ['#E0E0DA', '#B87333', .75],
+  'Operator may own the real estate': ['#E0E0DA', '#E0E0DA', .3], 'Leased or separate landlord': ['#B87333', '#E0E0DA', 1],
+  'Not confirmed': ['#969696', '#E0E0DA', .9], 'Not yet researched': ['#969696', '#969696', .2]};
+const OWNL = {'Not confirmed': 'Owner known, no tie to the operator found', 'Operator may own the real estate': 'Operator may own (tax bill mails to the wash)'};
+
+function start(D) {
+  document.title = D.meta.title;
+  $('app').style.display = 'flex';
+  $('logo').src = D.logo; $('title').textContent = D.meta.title; $('sub').textContent = D.meta.sub;
+  $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, against the household vehicles around them.';
+  $('cn').textContent = D.contact.name; $('ct').textContent = D.contact.title; $('cf').textContent = D.contact.firm;
+  $('tel').textContent = D.contact.phone; $('tel').href = 'tel:' + D.contact.tel; $('mail').href = $('contact').href = 'mailto:' + D.contact.email;
+  $('mtext').innerHTML = D.method;
+
+  const map = L.map('map', {preferCanvas: true, zoomControl: true, minZoom: 8, maxZoom: 19});
+  const tiles = 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/';
+  L.tileLayer(tiles + 'World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 16, maxZoom: 19, attribution: 'Esri, TomTom, Garmin, FAO, NOAA, USGS, OpenStreetMap contributors'}).addTo(map);
+  map.createPane('labels').style.zIndex = 450; map.getPane('labels').style.pointerEvents = 'none';
+  L.tileLayer(tiles + 'World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {maxNativeZoom: 16, maxZoom: 19, pane: 'labels'}).addTo(map);
+  map.createPane('pts').style.zIndex = 460;
+  const ptR = L.canvas({pane: 'pts'}), shR = L.canvas();
+  const ALL = L.latLngBounds([40.49, -74.27], [41.06, -72.55]);
+  map.fitBounds(ALL);
+
+  // tracts
+  let bench = '20k';
+  const tractLayer = L.layerGroup().addTo(map);
+  const tstyle = t => ({renderer: shR, stroke: true, color: 'rgba(42,40,41,0.35)', weight: 0.4, fillColor: CCOL[t['c' + bench]], fillOpacity: 1});
+  const polys = D.tracts.map(t => {
+    const p = L.polygon(t.rings.map(r => r.map(c => [c[1], c[0]])), tstyle(t));
+    p.on('click', e => L.popup({maxWidth: 330}).setLatLng(e.latlng).setContent(tractHtml(t)).openOn(map));
+    return [p, t];
+  });
+  polys.forEach(x => tractLayer.addLayer(x[0]));
+  function tractHtml(t) {
+    const pe = {'25k': '25,000', '20k': '20,000', '15k': '15,000'}[bench];
+    return '<h4>' + esc(t.label) + '</h4><p style="margin:0 0 6px"><b>' + CLAB[t['c' + bench]] + '</b> at 1 tunnel per ' + pe + ' people (' + num(D.meta.bench[bench]) + ' household vehicles).</p>' +
+      '<table class="kv">' + [['Trade area', 'about ' + t.r + ' miles (10-minute drive, estimate)'], ['Household vehicles in it', num(t.veh)], ['People in it', num(t.pop)],
+      ['Tunnels operating', t.t], ['Upcoming competitor washes', t.p], ['Tunnels the vehicles support', t['s' + bench]], ['Modeled gap', t['g' + bench]],
+      ['Vehicles per tunnel today', num(t.vpt)], ['Nearest tunnel', t.near + ' mi']].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') +
+      '</table><p style="margin:6px 0 0;font-size:12px;color:#5c5a57">Screening estimate. Sites still under review are not counted as supply.</p>';
+  }
+  $('bench').onchange = e => { bench = e.target.value; polys.forEach(x => x[0].setStyle(tstyle(x[1]))); drawGrid(); };
+  $('cShade').onchange = e => e.target.checked ? tractLayer.addTo(map) : map.removeLayer(tractLayer);
+
+  // areas
+  const jumps = {'All seven areas': ALL, 'The five boroughs': L.latLngBounds([40.49, -74.27], [40.92, -73.69]), 'Long Island (Nassau and Suffolk)': L.latLngBounds([40.56, -73.78], [41.06, -72.45])};
+  D.areas.forEach(a => {
+    const pg = L.polygon(a.rings.map(r => r.map(c => [c[1], c[0]])), {renderer: shR, fill: false, color: 'rgba(224,224,218,0.7)', weight: 1, interactive: false}).addTo(map);
+    jumps[a.area] = pg.getBounds();
+    L.tooltip({permanent: true, direction: 'center', className: 'arealabel', pane: 'labels'}).setLatLng(pg.getBounds().getCenter()).setContent(a.area).addTo(map);
+  });
+  $('jump').innerHTML = '<option value="">Jump to an area</option>' + Object.keys(jumps).map(k => '<option>' + esc(k) + '</option>').join('');
+  $('jump').onchange = e => { if (e.target.value) map.fitBounds(jumps[e.target.value]); e.target.value = ''; };
+
+  // tunnels
+  let byOwn = false;
+  const tLayer = L.layerGroup().addTo(map), rLayer = L.layerGroup();
+  const tStyle = t => {
+    if (byOwn) { const c = OWNC[t.ownership] || OWNC['Not yet researched']; return {renderer: ptR, radius: 6, color: c[1], weight: 1.5, fillColor: c[0], fillOpacity: c[2]}; }
+    return t.tier === 'Confirmed tunnel' ? {renderer: ptR, radius: 5.5, color: '#2A2829', weight: 1.2, fillColor: '#E0E0DA', fillOpacity: 1}
+                                         : {renderer: ptR, radius: 5.5, color: '#E0E0DA', weight: 1.7, fillColor: '#E0E0DA', fillOpacity: 0.15};
+  };
+  const up_ = t => t.tier === 'Upcoming competitor wash';
+  const row = (k, v) => (v == null || v === '') ? '' : '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>';
+  const tHtml = t => '<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Owner of record', t.owner) +
+    row('Owner source', t.owner_src) + row('Who holds the land (our read)', OWNL[t.ownership] || t.ownership) + row('Tunnel read', t.tier) + row('Format (provisional)', t.format) +
+    row('Wash building (ft, estimate)', t.len) + row(up_(t) ? 'Status' : 'Basis for the tunnel read', t.evidence) + row('Debt of record', t.debt) + row('SBA loan of record', t.sba) +
+    row('Debt maturity window', t.maturity) + row('Google rating', t.rating ? t.rating + ' (' + num(t.reviews) + ' reviews)' : '') + '</table>';
+  D.tunnels.forEach(t => {
+    t.m = up_(t) ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 14], html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid #B87333;filter:drop-shadow(0 0 1px #E0E0DA)"></div>'})})
+      : t.own ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 16], html: '<div style="width:14px;height:14px;transform:rotate(45deg);background:#B87333;border:2px solid #E0E0DA"></div>'})})
+                   : L.circleMarker([t.lat, t.lng], tStyle(t));
+    t.m.bindPopup(() => tHtml(t), {maxWidth: 340}).addTo(tLayer);
+  });
+  D.review.forEach(t => L.circleMarker([t.lat, t.lng], {renderer: ptR, radius: 4, color: '#969696', weight: 1.5, fillOpacity: 0, dashArray: '2 2'})
+    .bindPopup('<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Note', 'Plausible tunnel; needs a street-level look') + '</table>').addTo(rLayer));
+  function legend() {
+    $('legT').innerHTML = byOwn ? Object.keys(OWNC).map(k => '<p><span class="dot" style="background:' + OWNC[k][0] + ';border-color:' + OWNC[k][1] + ';opacity:' + Math.max(OWNC[k][2], .45) + '"></span>' + (OWNL[k] || k) + '</p>').join('')
+      : '<p><span class="dot" style="background:#E0E0DA;border-color:#2A2829"></span>Confirmed tunnel</p><p><span class="dot" style="background:transparent"></span>Probable tunnel (not yet seen at street level)</p>';
+    $('legT').innerHTML += '<p><span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:11px solid #B87333;margin-right:6px"></span>Upcoming competitor wash (approved or in the approval process)</p>';
+    $('legT').innerHTML += '<p><span class="dia"></span>' + esc(D.meta.ownLabel) + '</p>';
+  }
+  legend();
+  $('cOwn').onchange = e => { byOwn = e.target.checked; D.tunnels.forEach(t => t.m.setStyle && t.m.setStyle(tStyle(t))); legend(); };
+  $('cRev').onchange = e => e.target.checked ? rLayer.addTo(map) : map.removeLayer(rLayer);
+  const go = t => { $('drawer').style.display = 'none'; map.setView([t.lat, t.lng], 16); t.m.openPopup(); };
+
+  // search
+  $('q').oninput = e => {
+    const s = e.target.value.trim().toLowerCase(), h = $('hits');
+    if (s.length < 2) { h.style.display = 'none'; return; }
+    const r = D.tunnels.filter(t => (t.name + ' ' + t.address + ' ' + t.city + ' ' + (t.owner || '')).toLowerCase().includes(s)).slice(0, 25);
+    h.innerHTML = r.map((t, i) => '<div data-i="' + D.tunnels.indexOf(t) + '">' + esc(t.name) + '<br><small>' + esc(t.address + ', ' + t.city) + '</small></div>').join('') || '<div>No tunnel matches.</div>';
+    h.style.display = 'block';
+  };
+  $('hits').onclick = e => { const d = e.target.closest('div[data-i]'); if (d) { go(D.tunnels[+d.dataset.i]); $('hits').style.display = 'none'; } };
+
+  // windows
+  let tab = 'A', sortK = null, sortD = 1;
+  const TC = [['name', 'Wash'], ['address', 'Address'], ['city', 'Town or village'], ['county', 'County'], ['owner', 'Owner of record'], ['ownership', 'Who holds the land (our read)'],
+    ['debt', 'Debt of record'], ['sba', 'SBA loan of record'], ['maturity', 'Debt maturity window'], ['format', 'Format (provisional)'], ['tier', 'Tunnel read'], ['rating', 'Google rating'], ['reviews', 'Google reviews']];
+  function drawGrid() {
+    const AC = [['rank_' + bench, 'Rank'], ['area', 'Area'], ['tunnels', 'Tunnels'], ['vehicles_per_tunnel', 'Vehicles per tunnel'], ['people_per_tunnel', 'People per tunnel'],
+      ['room_at_par_' + bench, 'Room at par (estimate)'], ['underserved_tracts_' + bench, 'Underserved tracts'], ['tracts', 'Census tracts']];
+    const cols = tab === 'A' ? AC : TC;
+    let rows = (tab === 'A' ? D.areas : D.tunnels).slice();
+    const k = sortK || (tab === 'A' ? 'rank_' + bench : null);
+    if (k) rows.sort((a, b) => { const x = a[k], y = b[k]; return ((typeof x === 'number' && typeof y === 'number') ? x - y : String(x == null ? '' : x).localeCompare(String(y == null ? '' : y))) * sortD; });
+    $('grid').innerHTML = '<table class="grid"><thead><tr>' + cols.map(c => '<th data-k="' + c[0] + '">' + c[1] + '</th>').join('') + '</tr></thead><tbody>' +
+      rows.map(r => '<tr data-i="' + (tab === 'A' ? esc(r.area) : D.tunnels.indexOf(r)) + '">' + cols.map(c => '<td>' + (typeof r[c[0]] === 'number' ? num(r[c[0]]) : esc(c[0] === 'ownership' ? (OWNL[r[c[0]]] || r[c[0]]) : r[c[0]])) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+    $('count').textContent = rows.length + (tab === 'A' ? ' areas. Click a row to move the map.' : ' tunnels. Click a heading to sort, a row to open the wash on the map.');
+  }
+  $('grid').onclick = e => {
+    const th = e.target.closest('th'); if (th) { sortD = sortK === th.dataset.k ? -sortD : 1; sortK = th.dataset.k; drawGrid(); return; }
+    const tr = e.target.closest('tr[data-i]'); if (!tr) return;
+    if (tab === 'A') { map.fitBounds(jumps[tr.dataset.i]); $('drawer').style.display = 'none'; } else go(D.tunnels[+tr.dataset.i]);
+  };
+  const setTab = t => { tab = t; sortK = null; sortD = 1; $('tA').className = t === 'A' ? 'on' : ''; $('tT').className = t === 'T' ? 'on' : ''; drawGrid(); };
+  $('tA').onclick = () => setTab('A'); $('tT').onclick = () => setTab('T');
+  $('bRank').onclick = () => { $('drawer').style.display = 'flex'; drawGrid(); };
+  $('xD').onclick = () => $('drawer').style.display = 'none';
+  $('bMethod').onclick = () => $('method').style.display = 'flex';
+  $('xM').onclick = () => $('method').style.display = 'none';
+  setTimeout(() => map.invalidateSize(), 50);
+  window.__app = {map, D};
+}
+</script>
+</body>
+</html>
