@@ -61,7 +61,16 @@ table.grid th{position:sticky;top:0;background:var(--char);color:var(--offw);tex
 table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top}table.grid tr:hover td{background:#F1F1EC;cursor:pointer}
 #method .win-b{padding:6px 22px 20px;line-height:1.45}#method h4{font-family:var(--serif);font-size:17px;margin:14px 0 4px}#method p{margin:0 0 8px}
 #count{color:#5c5a57;font-size:12px;padding:6px 12px;border-top:1px solid #DDDBD5}
-@media (max-width:820px){main{flex-direction:column}#rail{width:100%;flex:0 0 auto;max-height:42%}header{gap:12px;padding:0 10px}header img{height:32px}header .s{display:none}header .t{font-size:15px;white-space:normal;line-height:1.15}header a.btn{display:none}#drawer{width:100%}}
+#keyBtn{display:none}#railClose{display:none}
+@media (max-width:820px){
+  header{height:56px;flex-basis:56px;gap:10px;padding:0 10px}header img{height:30px}header .s{display:none}header .t{font-size:15px;white-space:normal;line-height:1.15}
+  header a.btn{padding:5px 9px;font-size:12px}#keyBtn{display:inline-block;margin-left:auto;padding:5px 9px;font-size:12px;width:auto;white-space:nowrap}header a.btn{margin-left:0}
+  #rail{display:none;position:absolute;left:0;right:0;bottom:0;width:auto;max-height:72%;z-index:1100;border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.4);padding-top:10px}
+  #rail.open{display:block}#rail h2{font-size:16px;padding-right:70px}
+  #railClose{display:block;position:absolute;right:12px;top:8px;width:auto;padding:4px 10px;font-size:12px}
+  #drawer{width:100%}#method{left:0;top:0;bottom:0;width:100%;transform:none;border:0}
+  .leaflet-popup-content{max-height:none}
+}
 </style>
 </head>
 <body>
@@ -72,18 +81,20 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
 </form></div>
 
 <div id="app">
-<header><img id="logo" alt=""><div><div class="t" id="title"></div><div class="s" id="sub"></div></div><a class="btn" id="contact" href="#">Contact</a></header>
+<header><img id="logo" alt=""><div><div class="t" id="title"></div><div class="s" id="sub"></div></div><button class="btn" id="keyBtn">Key and tools</button><a class="btn" id="contact" href="#">Contact</a></header>
 <main>
 <div id="rail">
+  <button class="btn" id="railClose">Close</button>
   <h2>How to read this map</h2>
   <p id="lead"></p>
   <h3>Shading: room for another tunnel</h3>
   <p class="m">Each census tract is scored on the household vehicles within a 10-minute drive, less the tunnel car washes already there and the upcoming competitor washes.</p>
+  <p class="m" id="shadeNote"></p>
   <p><span class="sw" style="background:rgb(176,92,30)"></span>More than 2 tunnels short</p>
   <p><span class="sw" style="background:rgb(214,150,90)"></span>1 to 2 tunnels short</p>
   <p><span class="sw" style="background:rgb(226,216,192)"></span>Within 1 tunnel of par</p>
   <p><span class="sw" style="background:rgb(96,118,138)"></span>More tunnels than the vehicles support</p>
-  <select id="bench" aria-label="Benchmark"><option value="20k">1 tunnel per 20,000 people</option><option value="25k">1 tunnel per 25,000 people</option><option value="15k">1 tunnel per 15,000 people</option></select>
+  <select id="bench" aria-label="Benchmark"><option value="20k">1 tunnel per 20,000 residents (standard)</option><option value="25k">1 tunnel per 25,000 residents (conservative)</option><option value="15k">1 tunnel per 15,000 residents (mature market)</option></select>
   <label><input type="checkbox" id="cShade" checked> Show shading</label>
   <h3>Car washes</h3>
   <div id="legT"></div>
@@ -108,7 +119,7 @@ table.grid td{padding:6px 8px;border-bottom:1px solid #E6E4DF;vertical-align:top
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-const P = {"salt": "THMUPWScMhMWKpLo9uEvaA==", "iv": "nWpDk5NzbuMkmzBv", "iter": 310000, "v": 1794254363};
+const P = {"salt": "XjVMSxfr6HsLN5V/8py0Pw==", "iv": "S91BwO1vKtpb+LKk", "iter": 310000, "v": 1794254961};
 const $ = id => document.getElementById(id);
 const b64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -124,7 +135,7 @@ async function unlock(pass) {
 }
 $('gf').addEventListener('submit', async e => {
   e.preventDefault(); $('ge').textContent = 'Opening...';
-  try { const d = await unlock($('pc').value.trim()); $('gate').remove(); start(d); }
+  try { const d = await unlock($('pc').value.replace(/\s+/g, '').toLowerCase()); $('gate').remove(); start(d); }
   catch (err) { $('ge').textContent = 'That passcode did not open the map.'; }
 });
 
@@ -139,6 +150,10 @@ function start(D) {
   $('app').style.display = 'flex';
   $('logo').src = D.logo; $('title').textContent = D.meta.title; $('sub').textContent = D.meta.sub;
   $('lead').innerHTML = '<b>' + D.meta.nTunnels + ' tunnel car washes</b> in the five boroughs, Nassau and Suffolk, and ' + D.meta.nUpcoming + ' upcoming competitor washes, set against the household vehicles around them.';
+  $('shadeNote').textContent = D.meta.shadeNote || ''; if (!D.meta.shadeNote) $('shadeNote').remove();
+  const railOpen = o => $('rail').classList.toggle('open', o);
+  $('keyBtn').onclick = () => railOpen(!$('rail').classList.contains('open')); $('railClose').onclick = () => railOpen(false);
+  const small = () => window.matchMedia('(max-width: 820px)').matches;
   $('cn').textContent = D.contact.name; $('ct').textContent = D.contact.title; $('cf').textContent = D.contact.firm;
   $('tel').textContent = D.contact.phone; $('tel').href = 'tel:' + D.contact.tel; $('mail').href = $('contact').href = 'mailto:' + D.contact.email;
   $('mtext').innerHTML = D.method;
@@ -165,7 +180,7 @@ function start(D) {
   polys.forEach(x => tractLayer.addLayer(x[0]));
   function tractHtml(t) {
     const pe = {'25k': '25,000', '20k': '20,000', '15k': '15,000'}[bench];
-    return '<h4>' + esc(t.label) + '</h4><p style="margin:0 0 6px"><b>' + CLAB[t['c' + bench]] + '</b> at 1 tunnel per ' + pe + ' people (' + num(D.meta.bench[bench]) + ' household vehicles).</p>' +
+    return '<h4>' + esc(t.label) + '</h4><p style="margin:0 0 6px"><b>' + CLAB[t['c' + bench]] + '</b> at 1 tunnel per ' + pe + ' residents (' + num(D.meta.bench[bench]) + ' household vehicles).</p>' +
       '<table class="kv">' + [['Trade area', 'about ' + t.r + ' miles (10-minute drive, estimate)'], ['Household vehicles in it', num(t.veh)], ['People in it', num(t.pop)],
       ['Tunnel car washes', t.t], ['Upcoming competitor washes', t.p], ['Tunnels the vehicles support', t['s' + bench]], ['Room for more tunnels', t['g' + bench]],
       ['Vehicles per tunnel today', num(t.vpt)], ['Nearest tunnel', t.near + ' mi']].map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join('') +
@@ -182,7 +197,7 @@ function start(D) {
     L.tooltip({permanent: true, direction: 'center', className: 'arealabel', pane: 'labels'}).setLatLng(pg.getBounds().getCenter()).setContent(a.area).addTo(map);
   });
   $('jump').innerHTML = '<option value="">Jump to an area</option>' + Object.keys(jumps).map(k => '<option>' + esc(k) + '</option>').join('');
-  $('jump').onchange = e => { if (e.target.value) map.fitBounds(jumps[e.target.value]); e.target.value = ''; };
+  $('jump').onchange = e => { if (e.target.value) { map.fitBounds(jumps[e.target.value]); if (small()) railOpen(false); } e.target.value = ''; };
 
   // tunnels
   let byOwn = false;
@@ -194,10 +209,11 @@ function start(D) {
   };
   const up_ = t => t.tier === 'Upcoming competitor wash';
   const row = (k, v) => (v == null || v === '') ? '' : '<tr><td>' + k + '</td><td>' + esc(v) + '</td></tr>';
-  const tHtml = t => '<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) + row('Type', t.tier) + row('Approval status', t.evidence) +
+  const rating = t => t.rating ? Number(t.rating).toFixed(1) + ' (' + num(t.reviews) + ' reviews)' : '';
+  const tHtml = t => '<h4>' + esc(t.name) + '</h4><table class="kv">' + row('Address', t.address + ', ' + t.city) + row('County', t.county) +
+    (up_(t) ? row('Type', t.tier) + row('Approval status', t.evidence) : '') + row('Format', t.format) +
     row('Owner of record', t.owner ? t.owner + (t.owner_src ? ' (' + t.owner_src + ')' : '') : '') + row('Real estate', t.ownership) +
-    row('Mortgage on record (NYC land records)', t.debt) + row('SBA loan (SBA data, Sept. 30, 2026)', t.sba) + row('SBA maturity (estimate)', t.maturity) + row('Format', t.format) +
-    row('Wash building length', t.len ? 'about ' + t.len + ' ft' : '') + row('Google rating', t.rating ? t.rating + ' (' + num(t.reviews) + ' reviews)' : '') + '</table>';
+    row('Mortgage (NYC property records)', t.debt) + row('SBA loan', t.sba) + row('Google rating', rating(t)) + '</table>';
   D.tunnels.forEach(t => {
     t.m = up_(t) ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 14], html: '<div style="width:0;height:0;border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:14px solid #B87333;filter:drop-shadow(0 0 1px #E0E0DA)"></div>'})})
       : t.own ? L.marker([t.lat, t.lng], {pane: 'pts', icon: L.divIcon({className: '', iconSize: [16, 16], html: '<div style="width:14px;height:14px;transform:rotate(45deg);background:#B87333;border:2px solid #E0E0DA"></div>'})})
@@ -212,7 +228,7 @@ function start(D) {
   }
   legend();
   $('cOwn').onchange = e => { byOwn = e.target.checked; D.tunnels.forEach(t => t.m.setStyle && t.m.setStyle(tStyle(t))); legend(); };
-  const go = t => { $('drawer').style.display = 'none'; map.setView([t.lat, t.lng], 16); t.m.openPopup(); };
+  const go = t => { $('drawer').style.display = 'none'; if (small()) railOpen(false); map.setView([t.lat, t.lng], 15); t.m.openPopup(); };
 
   // search
   $('q').oninput = e => {
@@ -226,18 +242,19 @@ function start(D) {
 
   // windows
   let tab = 'A', sortK = null, sortD = 1;
-  const TC = [['name', 'Wash'], ['address', 'Address'], ['city', 'Town or village'], ['county', 'County'], ['tier', 'Type'], ['owner', 'Owner of record'], ['ownership', 'Real estate'],
-    ['debt', 'Mortgage on record (NYC land records)'], ['sba', 'SBA loan (SBA data, Sept. 30, 2026)'], ['maturity', 'SBA maturity (estimate)'], ['format', 'Format'], ['rating', 'Google rating'], ['reviews', 'Google reviews']];
+  const TC = [['name', 'Wash'], ['address', 'Address'], ['city', 'Town or village'], ['county', 'County'], ['tier', 'Type'], ['format', 'Format'], ['owner', 'Owner of record'],
+    ['ownership', 'Real estate'], ['debt', 'Mortgage (NYC property records)'], ['sba', 'SBA loan'], ['rating', 'Google rating']];
   function drawGrid() {
-    const AC = [['rank_' + bench, 'Rank'], ['area', 'Area'], ['tunnels', 'Tunnels'], ['vehicles_per_tunnel', 'Vehicles per tunnel'], ['people_per_tunnel', 'People per tunnel'],
+    const AC = [['rank_' + bench, 'Rank'], ['area', 'Area'], ['tunnels', 'Tunnel car washes'], ['vehicles_per_tunnel', 'Vehicles per tunnel'], ['people_per_tunnel', 'Residents per tunnel'],
       ['room_at_par_' + bench, 'Room for more tunnels (estimate)'], ['underserved_tracts_' + bench, 'Underserved tracts'], ['tracts', 'Census tracts']];
     const cols = tab === 'A' ? AC : TC;
-    let rows = (tab === 'A' ? D.areas : D.tunnels).slice();
+    let rows = (tab === 'A' ? D.areas.filter(a => a.shaded) : D.tunnels).slice();
     const k = sortK || (tab === 'A' ? 'rank_' + bench : null);
     if (k) rows.sort((a, b) => { const x = a[k], y = b[k]; return ((typeof x === 'number' && typeof y === 'number') ? x - y : String(x == null ? '' : x).localeCompare(String(y == null ? '' : y))) * sortD; });
     $('grid').innerHTML = '<table class="grid"><thead><tr>' + cols.map(c => '<th data-k="' + c[0] + '">' + c[1] + '</th>').join('') + '</tr></thead><tbody>' +
       rows.map(r => '<tr data-i="' + (tab === 'A' ? esc(r.area) : D.tunnels.indexOf(r)) + '">' + cols.map(c => '<td>' + (typeof r[c[0]] === 'number' ? num(r[c[0]]) : esc(r[c[0]])) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
-    $('count').textContent = rows.length + (tab === 'A' ? ' areas. Click a row to move the map.' : ' car washes. Click a heading to sort, a row to open the wash on the map.');
+    $('count').textContent = tab === 'A' ? rows.length + ' areas. Click a row to move the map.' + (D.meta.shadeNote ? ' ' + D.meta.shadeNote : '')
+      : D.meta.nTunnels + ' tunnel car washes and ' + D.meta.nUpcoming + ' upcoming competitor washes. Click a heading to sort, a row to open the wash on the map.';
   }
   $('grid').onclick = e => {
     const th = e.target.closest('th'); if (th) { sortD = sortK === th.dataset.k ? -sortD : 1; sortK = th.dataset.k; drawGrid(); return; }
